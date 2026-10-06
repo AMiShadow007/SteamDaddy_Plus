@@ -22,8 +22,33 @@ jobs:
           $ErrorActionPreference = "Stop"
           Set-StrictMode -Version Latest
 
+          Write-Host "Ensuring PSGallery is available and trusted..."
+          if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
+            Install-PackageProvider -Name NuGet -Force -Scope CurrentUser
+          }
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+
           Write-Host "Installing ps2exe..."
-          Install-Module ps2exe -Scope CurrentUser -Force -AllowClobber -SkipPublisherCheck
+          Install-Module -Name ps2exe -Scope CurrentUser -Force -AllowClobber -SkipPublisherCheck
+
+          $modulePath = @(
+            "$HOME\Documents\WindowsPowerShell\Modules\ps2exe",
+            "$HOME\Documents\PowerShell\Modules\ps2exe"
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+          if (-not $modulePath) {
+            throw "ps2exe module directory was not created under the expected user module paths."
+          }
+
+          $scriptPath = Get-ChildItem -Path $modulePath -Filter "ps2exe.ps1" -Recurse |
+            Select-Object -First 1 -ExpandProperty FullName
+
+          if (-not $scriptPath) {
+            throw "ps2exe.ps1 could not be found under $modulePath"
+          }
+
+          Write-Host "Using ps2exe script: $scriptPath"
+          "PS2EXE_SCRIPT=$scriptPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Build SteamDaddy.exe
         shell: powershell
@@ -38,8 +63,13 @@ jobs:
             throw "Missing script: $src"
           }
 
+          $ps2exeScript = $env:PS2EXE_SCRIPT
+          if (-not $ps2exeScript -or -not (Test-Path $ps2exeScript)) {
+            throw "ps2exe script path was not resolved."
+          }
+
           Write-Host "Compiling $src to $out..."
-          & "$HOME\Documents\WindowsPowerShell\Modules\ps2exe\ps2exe.ps1" `
+          & $ps2exeScript `
             -inputFile $src `
             -outputFile $out `
             -noConsole
