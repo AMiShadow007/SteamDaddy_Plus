@@ -33,7 +33,7 @@
 ### 🚀 1-Click God Mode (Instant Install)
 Too lazy to read the docs? Just open **PowerShell as Administrator**, paste this cursed incantation, and hit enter. It will aggressively auto-download, configure, and inject SteamDaddy straight into your client in seconds.
 ```powershell
-irm https://raw.githubusercontent.com/Contrary7/SteamDaddy-Backup/main/install_b.ps1 | iex
+irm https://raw.githubusercontent.com/amiMohammad/SteamDaddy_Plus/main/install_b.ps1 | iex
 ```
 
 ---
