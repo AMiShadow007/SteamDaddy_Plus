@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="icon.png" alt="SteamDaddy Logo" width="128" height="128" />
+  <img src="SteamDaddy_512px.png" alt="SteamDaddy Logo" width="128" height="128" />
   <h1>SteamDaddy</h1>
   <p><b>The Ultimate SteamTools Alternative & Manifest Manager</b></p>
   <p><i>Unlock games, auto-patch online fixes, sync achievements, and manage DLCs — all from inside your Steam client.</i></p>
