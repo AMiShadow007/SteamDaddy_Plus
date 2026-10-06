@@ -1,0 +1,28 @@
+#include <windows.h>
+
+IDI_ICON1 ICON "..\\SteamDaddy_512px.png"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,0
+ PRODUCTVERSION 1,0,0,0
+ MASK 0x3f
+ BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "CompanyName", "SteamDaddy Community"
+            VALUE "FileDescription", "SteamDaddy - Steam Tools & DLC Manager"
+            VALUE "FileVersion", "1.0.0.0"
+            VALUE "InternalName", "SteamDaddy.exe"
+            VALUE "OriginalFilename", "SteamDaddy.exe"
+            VALUE "ProductName", "SteamDaddy Plus"
+            VALUE "ProductVersion", "1.0.0.0"
+            VALUE "LegalCopyright", "Community Project"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1252
+    END
+ END
