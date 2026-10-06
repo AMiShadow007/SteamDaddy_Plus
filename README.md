@@ -165,7 +165,7 @@ By supplying the correct manifest and its associated `.lua` config, you force St
 Open **PowerShell as Administrator** and paste:
 
 ```powershell
-irm https://raw.githubusercontent.com/Contrary7/SteamDaddy-Backup/main/install_b.ps1 | iex
+irm https://raw.githubusercontent.com/amiMohammad/SteamDaddy_Plus/main/install_b.ps1 | iex
 ```
 
 This will download, install, and configure everything automatically.
