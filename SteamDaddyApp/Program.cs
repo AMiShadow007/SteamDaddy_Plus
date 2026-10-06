@@ -2,8 +2,7 @@ using System.Diagnostics;
 using System.Reflection;
 
 var asm = Assembly.GetExecutingAssembly();
-var resourceName = "SteamDaddy.install_b.ps1";
-var scriptName = "SteamDaddy_Install.ps1";
+var scriptName = "SteamDaddy_Install_b.ps1";
 
 var resource = asm.GetManifestResourceNames()
     .FirstOrDefault(x => x.EndsWith("install_b.ps1", StringComparison.OrdinalIgnoreCase));
