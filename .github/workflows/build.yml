@@ -14,133 +14,55 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Download PS2EXE compiler
-        shell: powershell
-        run: |
-          $ErrorActionPreference = "Stop"
-          Set-StrictMode -Version Latest
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+          dotnet-channel: LTS
 
-          Write-Host "Downloading PS2EXE compiler..."
-          
-          $toolsDir = Join-Path $env:TEMP "PSToEXE"
-          if (Test-Path $toolsDir) {
-            Remove-Item $toolsDir -Recurse -Force
-          }
-          New-Item -ItemType Directory -Path $toolsDir -Force | Out-Null
-          
-          $urls = @(
-            "https://github.com/MScholtes/PS2EXE/releases/download/v0.5.0.15/ps2exe.exe",
-            "https://github.com/MScholtes/PS2EXE/releases/latest/download/ps2exe.exe"
-          )
-          
-          $psToExePath = Join-Path $toolsDir "ps2exe.exe"
-          $downloaded = $false
-          
-          foreach ($url in $urls) {
-            try {
-              Write-Host "Attempting download from: $url"
-              Invoke-WebRequest -Uri $url -OutFile $psToExePath -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop
-              if (Test-Path $psToExePath) {
-                $fileSize = (Get-Item $psToExePath).Length
-                Write-Host "Successfully downloaded PS2EXE ($fileSize bytes)"
-                $downloaded = $true
-                break
-              }
-            } catch {
-              Write-Host "Failed to download from $url : $_"
-              if (Test-Path $psToExePath) {
-                Remove-Item $psToExePath -Force -ErrorAction SilentlyContinue
-              }
-            }
-          }
-          
-          if (-not $downloaded) {
-            throw "Failed to download PS2EXE from all sources. Check internet connectivity and GitHub release availability."
-          }
-          
-          Write-Host "PS2EXE ready at: $psToExePath"
-          "PSTOEXE_PATH=$psToExePath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Restore dependencies
+        run: dotnet restore SteamDaddyApp/SteamDaddyApp.csproj
 
       - name: Build SteamDaddy.exe
-        shell: powershell
         run: |
-          $ErrorActionPreference = "Stop"
-          Set-StrictMode -Version Latest
-
-          $src = Join-Path $env:GITHUB_WORKSPACE "install_b.ps1"
-          $out = Join-Path $env:GITHUB_WORKSPACE "SteamDaddy.exe"
-          $psToExe = $env:PSTOEXE_PATH
-
-          Write-Host "Build Configuration:"
-          Write-Host "  Source: $src"
-          Write-Host "  Output: $out"
-          Write-Host "  Compiler: $psToExe"
-          Write-Host ""
-
-          if (-not (Test-Path $src)) {
-            throw "Missing source script: $src"
-          }
-
-          if (-not (Test-Path $psToExe)) {
-            throw "PS2EXE compiler not found: $psToExe"
-          }
-
-          Write-Host "Compiling PowerShell script to executable..."
-          
-          & $psToExe -inputFile $src -outputFile $out -noConsole -x64 2>&1 | ForEach-Object { Write-Host $_ }
-          
-          $exitCode = $LASTEXITCODE
-          Write-Host "Compiler exit code: $exitCode"
-
-          Start-Sleep -Milliseconds 1000
-          
-          if (-not (Test-Path $out)) {
-            Write-Host "ERROR: Compilation did not produce output file"
-            Write-Host "Working directory: $(Get-Location)"
-            Write-Host "Workspace files:"
-            Get-ChildItem $env:GITHUB_WORKSPACE -File | ForEach-Object { 
-              Write-Host "  - $($_.Name) ($($_.Length) bytes)"
-            }
-            throw "Build failed: SteamDaddy.exe was not created (exit code: $exitCode)"
-          }
-
-          $fileInfo = Get-Item $out
-          $sizeKB = [Math]::Round($fileInfo.Length / 1KB, 2)
-          Write-Host ""
-          Write-Host "✓ SUCCESS: Compiled SteamDaddy.exe"
-          Write-Host "  Size: $sizeKB KB"
-          Write-Host "  Location: $out"
+          dotnet publish "SteamDaddyApp/SteamDaddyApp.csproj" `
+            -c Release `
+            -r win-x64 `
+            --self-contained false `
+            -p:PublishSingleFile=true `
+            -p:UseAppHost=true
 
       - name: Verify executable
         shell: powershell
         run: |
-          $exe = Join-Path $env:GITHUB_WORKSPACE "SteamDaddy.exe"
-          
-          if (-not (Test-Path $exe)) {
-            throw "Executable verification failed: $exe not found"
+          $output = Join-Path $env:GITHUB_WORKSPACE "SteamDaddyApp/bin/Release/net8.0-windows/win-x64/publish/SteamDaddy.exe"
+          if (-not (Test-Path $output)) {
+            throw "Build failed: $output was not created"
           }
           
-          $fileInfo = Get-Item $exe
-          Write-Host "Executable verified:"
-          Write-Host "  Name: $($fileInfo.Name)"
-          Write-Host "  Size: $($fileInfo.Length) bytes"
+          $fileInfo = Get-Item $output
+          Write-Host "✓ Build successful"
+          Write-Host "  File: $($fileInfo.Name)"
+          Write-Host "  Size: $([Math]::Round($fileInfo.Length / 1MB, 2)) MB"
           Write-Host "  Created: $($fileInfo.CreationTime)"
+          
+          Copy-Item $output (Join-Path $env:GITHUB_WORKSPACE "SteamDaddy.exe") -Force
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: SteamDaddy-exe
           path: SteamDaddy.exe
           if-no-files-found: error
 
-      - name: Create GitHub Release
+      - name: Create Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           files: SteamDaddy.exe
-          tag_name: release-${{ github.run_number }}
+          tag_name: v${{ github.run_number }}
           name: SteamDaddy.exe Build ${{ github.run_number }}
           body: |
             Automated build of SteamDaddy.exe
@@ -148,7 +70,6 @@ jobs:
             **Build Details:**
             - Commit: ${{ github.sha }}
             - Run: ${{ github.run_number }}
-            - Branch: ${{ github.ref }}
           draft: false
           prerelease: false
         env:
