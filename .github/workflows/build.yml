@@ -25,16 +25,12 @@ jobs:
         run: dotnet restore SteamDaddyApp/SteamDaddyApp.csproj
 
       - name: Build SteamDaddy.exe
+        shell: pwsh
         run: |
-          dotnet publish "SteamDaddyApp/SteamDaddyApp.csproj" `
-            -c Release `
-            -r win-x64 `
-            --self-contained false `
-            -p:PublishSingleFile=true `
-            -p:UseAppHost=true
+          dotnet publish "SteamDaddyApp/SteamDaddyApp.csproj" -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:UseAppHost=true
 
       - name: Verify executable
-        shell: powershell
+        shell: pwsh
         run: |
           $output = Join-Path $env:GITHUB_WORKSPACE "SteamDaddyApp/bin/Release/net10.0-windows/win-x64/publish/SteamDaddy.exe"
           if (-not (Test-Path $output)) {
@@ -42,10 +38,9 @@ jobs:
           }
           
           $fileInfo = Get-Item $output
-          Write-Host "✓ Build successful"
+          Write-Host "Build successful"
           Write-Host "  File: $($fileInfo.Name)"
           Write-Host "  Size: $([Math]::Round($fileInfo.Length / 1MB, 2)) MB"
-          Write-Host "  Created: $($fileInfo.CreationTime)"
           
           Copy-Item $output (Join-Path $env:GITHUB_WORKSPACE "SteamDaddy.exe") -Force
 
@@ -66,7 +61,7 @@ jobs:
           body: |
             Automated build of SteamDaddy.exe
             
-            **Build Details:**
+            Build Details:
             - Commit: ${{ github.sha }}
             - Run: ${{ github.run_number }}
           draft: false
