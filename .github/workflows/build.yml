@@ -39,12 +39,12 @@ jobs:
           if (-not (Test-Path $output)) {
             throw "Build failed: $output was not created"
           }
-          
+
           $fileInfo = Get-Item $output
           Write-Host "Build successful"
           Write-Host "  File: $($fileInfo.Name)"
           Write-Host "  Size: $([Math]::Round($fileInfo.Length / 1MB, 2)) MB"
-          
+
           Copy-Item $output (Join-Path $env:GITHUB_WORKSPACE "SteamDaddy.exe") -Force
 
       - name: Upload artifact
@@ -63,7 +63,7 @@ jobs:
           name: SteamDaddy.exe Build ${{ github.run_number }}
           body: |
             Automated build of SteamDaddy.exe
-            
+
             Build Details:
             - Commit: ${{ github.sha }}
             - Run: ${{ github.run_number }}
