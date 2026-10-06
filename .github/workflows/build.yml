@@ -16,44 +16,93 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Validate source script
+      - name: Download and setup PSToEXE tool
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          Set-StrictMode -Version Latest
+
+          Write-Host "Setting up PSToEXE compiler..."
+          
+          $toolsDir = Join-Path $env:TEMP "PSToEXE"
+          if (Test-Path $toolsDir) {
+            Remove-Item $toolsDir -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $toolsDir -Force | Out-Null
+          
+          $psToExeUrl = "https://github.com/MScholtes/PS2EXE/releases/download/v0.5.0.15/ps2exe.exe"
+          $psToExePath = Join-Path $toolsDir "ps2exe.exe"
+          
+          Write-Host "Downloading PSToEXE from $psToExeUrl..."
+          Invoke-WebRequest -Uri $psToExeUrl -OutFile $psToExePath -UseBasicParsing
+          
+          if (-not (Test-Path $psToExePath)) {
+            throw "Failed to download PSToEXE"
+          }
+          
+          Write-Host "PSToEXE downloaded to: $psToExePath"
+          "PSTOEXE_PATH=$psToExePath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build SteamDaddy.exe
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
           Set-StrictMode -Version Latest
 
           $src = Join-Path $env:GITHUB_WORKSPACE "install_b.ps1"
+          $out = Join-Path $env:GITHUB_WORKSPACE "SteamDaddy.exe"
+          $psToExe = $env:PSTOEXE_PATH
+
           if (-not (Test-Path $src)) {
-            throw "Missing script: $src"
+            throw "Missing source script: $src"
           }
 
-          $content = Get-Content $src -Raw
-          if ([string]::IsNullOrWhiteSpace($content)) {
-            throw "Source script is empty: $src"
+          if (-not (Test-Path $psToExe)) {
+            throw "PSToEXE not found: $psToExe"
           }
 
-          Write-Host "Validated script: $src"
+          Write-Host "Compiling PowerShell script to executable..."
+          Write-Host "Source: $src"
+          Write-Host "Output: $out"
+          Write-Host "Compiler: $psToExe"
+          Write-Host ""
 
-      - name: Package installer script
-        shell: powershell
-        run: |
-          $ErrorActionPreference = "Stop"
-          Set-StrictMode -Version Latest
+          $result = & $psToExe -inputFile $src -outputFile $out -noConsole -x64
+          
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Build exit code: $LASTEXITCODE"
+            Write-Host "Build output: $result"
+          }
 
-          $src = Join-Path $env:GITHUB_WORKSPACE "install_b.ps1"
-          $out = Join-Path $env:GITHUB_WORKSPACE "SteamDaddy-installer.ps1"
-
-          Copy-Item $src $out -Force
-
+          Start-Sleep -Milliseconds 500
+          
           if (-not (Test-Path $out)) {
-            throw "Package creation failed: $out"
+            Write-Host "ERROR: Compilation did not produce output file"
+            Write-Host "Working directory: $(Get-Location)"
+            Write-Host "Workspace contents:"
+            Get-ChildItem $env:GITHUB_WORKSPACE -File | ForEach-Object { Write-Host "  - $($_.Name)" }
+            throw "Build failed: SteamDaddy.exe was not created"
           }
 
-          Get-Item $out | Select-Object Name, Length
+          $fileInfo = Get-Item $out
+          Write-Host "Success! Created: $($fileInfo.Name) ($($fileInfo.Length) bytes)"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
-          name: SteamDaddy-installer
-          path: SteamDaddy-installer.ps1
+          name: SteamDaddy-exe
+          path: SteamDaddy.exe
           if-no-files-found: error
+
+      - name: Create Release (on push to main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: SteamDaddy.exe
+          tag_name: release-${{ github.run_number }}
+          name: SteamDaddy.exe Build ${{ github.run_number }}
+          body: Automated build of SteamDaddy.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
